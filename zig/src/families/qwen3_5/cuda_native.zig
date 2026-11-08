@@ -37,6 +37,7 @@ pub const textWeightBytes = @import("cuda_bf16_bytes.zig").textWeightBytes;
 pub const decision_formats: []const []const u8 = &.{"bf16"};
 const decide = @import("cuda_decide.zig");
 const joint = @import("cuda_joint_readout.zig");
+const sm110_modes = @import("cuda_sm110_modes.zig");
 pub const max_segments: u32 = 1;
 pub const prompt_rows: u32 = E.max_rows;
 /// --drafter loads a DFlash2 draft model (openDrafter), or on the MoE target its MTP layer; DFlash2 has no own head.
@@ -178,6 +179,7 @@ pub fn openLanes(gpa: std.mem.Allocator, io: std.Io, ctx: *const cuda.Context, d
     const share_snaps = try prefix_mod.sharing();
     // a kept state sits on a cold pass's chunk cut, so later chunks keep a cold pass's bits: pages divide the chunk
     if (share_snaps > 0 and (page_tokens == 0 or E.max_rows % page_tokens != 0)) return error.QwenShareNeedsPages;
+    try sm110_modes.check(try ctx.capability(), sm110_modes.current(o.kv8, o.prompt_int8, o.rope_yarn != null));
     const e = try E.Engine.init(gpa, io, ctx, dir, o.kv8, fitOf(o));
     errdefer e.deinit();
     if (o.rope_yarn) |f| { // --rope-yarn over the downloaded config: its table, and the window it allows
